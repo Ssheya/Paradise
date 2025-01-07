@@ -870,7 +870,7 @@
 
 /obj/item/nullrod/cursed_rosary/afterattack(atom/target, mob/user, proximity, params)
 	if(target.reagents.has_reagent("holywater"))
-	to_chat(user, "<span class='notice'>Вы проклинаете [target].</span>")
-	var/holy2curse = target.reagents.get_reagent_amount("holywater")
-	target.reagents.del_reagent("holywater")
-	target.reagents.add_reagent("hell_water", holy2curse)
+		to_chat(user, "<span class='notice'>Вы проклинаете [target].</span>")
+		var/holy2curse = target.reagents.get_reagent_amount("holywater")
+		target.reagents.del_reagent("holywater")
+		target.reagents.add_reagent("hell_water", holy2curse)
