@@ -549,7 +549,7 @@
 	)
 
 	praying = TRUE
-	
+
 	if(!do_after(user, 15 SECONDS, target))
 		to_chat(user, span_notice("Your prayer to [SSticker.Bible_deity_name] was interrupted."))
 		praying = FALSE
@@ -564,7 +564,7 @@
 		SSticker.mode.remove_clocker(target.mind)
 		praying = FALSE
 		return .|ATTACK_CHAIN_SUCCESS
-		
+
 	var/datum/antagonist/vampire/vamp = target.mind?.has_antag_datum(/datum/antagonist/vampire)
 	if(vamp && !vamp.get_ability(/datum/vampire_passive/full)) // Getting a full prayer off on a vampire will interrupt their powers for a large duration.
 		switch(vamp.nullification)
@@ -767,3 +767,110 @@
 	target << sound('sound/misc/wololo.ogg', 0, 1, 25)
 	missionary.say("WOLOLO!")
 	missionary << sound('sound/misc/wololo.ogg', 0, 1, 25)
+
+/obj/item/nullrod/cursed_rosary
+	name = "нечестивые чётки"
+	ru_names = list(
+		NOMINATIVE = "нечестивые чётки",
+		GENITIVE = "нечестивых чёток",
+		DATIVE = "нечестивым чёткам",
+		ACCUSATIVE = "нечестивые чётки",
+		INSTRUMENTAL = "нечестивыми чётками",
+		PREPOSITIONAL = "нечестивых чётках"
+	)
+	icon_state = "cursed_rosary"
+	item_state = null
+	desc = "Набор нечестивых молитвенных чёток, используемых почитателями тёмных богов."
+	force = 0
+	throwforce = 0
+	var/praying = FALSE
+
+/obj/item/nullrod/cursed_rosary/New()
+	..()
+	START_PROCESSING(SSobj, src)
+
+/obj/item/nullrod/cursed_rosary/Destroy()
+	STOP_PROCESSING(SSobj, src)
+	return ..()
+
+/obj/item/nullrod/cursed_rosary/attack(mob/living/carbon/human/target, mob/living/user, params, def_zone, skip_attack_anim = FALSE)
+	if(!ishuman(target))
+		return ..()
+
+	. = ATTACK_CHAIN_PROCEED
+	if(!user.mind || !user.mind.isholy)
+		to_chat(user, span_notice("Тёмные боги не позволяют вам использовать это"))
+		return .
+
+	if(praying)
+		to_chat(user, span_notice("Ты уже используешь [src]."))
+		return .
+
+	user.visible_message(
+		span_info("[user] становится на колени [target == user ? null : " перед [target]"] и начинает произносить молитву тёмным богам."),
+		span_info("Вы становитесь на колени[target == user ? null : " перед [target]"] и начинаете произносить молитву тёмным богам."),
+	)
+
+	praying = TRUE
+
+	if(!do_after(user, 15 SECONDS, target))
+		to_chat(user, span_notice("Ваши молитвы тёмным богам были прерваны"))
+		praying = FALSE
+		return .
+
+	if(iscultist(target))
+		SSticker.mode.remove_cultist(target.mind) // This proc will handle message generation.
+		praying = FALSE
+		return .|ATTACK_CHAIN_SUCCESS
+
+	if(isclocker(target))
+		SSticker.mode.remove_clocker(target.mind)
+		praying = FALSE
+		return .|ATTACK_CHAIN_SUCCESS
+
+	var/datum/antagonist/vampire/vamp = target.mind?.has_antag_datum(/datum/antagonist/vampire)
+	if(vamp && !vamp.get_ability(/datum/vampire_passive/full)) // Getting a full prayer off on a vampire will interrupt their powers for a large duration.
+		switch(vamp.nullification)
+			if(OLD_NULLIFICATION)
+				vamp.adjust_nullification(120, 120)
+
+			if(NEW_NULLIFICATION)
+				vamp.adjust_nullification(120, 50)
+		to_chat(target, "<span class='userdanger'>[user]'s prayer to [SSticker.Bible_deity_name] has interfered with your power!</span>")
+		praying = FALSE
+		return .|ATTACK_CHAIN_SUCCESS
+
+	if(!prob(25))
+		praying = FALSE
+		return .
+
+	to_chat(target, span_notice("[user]'s prayer to [SSticker.Bible_deity_name] has eased your pain!"))
+	var/update = NONE
+	update |= target.heal_overall_damage(5, 5, updating_health = FALSE)
+	update |= target.heal_damages(tox = 5, oxy = 5, updating_health = FALSE)
+	if(update)
+		target.updatehealth()
+	praying = FALSE
+	return .|ATTACK_CHAIN_SUCCESS
+
+
+/obj/item/nullrod/rosary/process()
+	if(!ishuman(loc))
+		return
+
+	var/mob/living/carbon/human/holder = loc
+	if(!holder.l_hand == src && !holder.r_hand == src) // Holding this in your hand will
+		return
+	for(var/mob/living/carbon/human/target in range(5, loc))
+		var/datum/antagonist/vampire/vamp = target.mind?.has_antag_datum(/datum/antagonist/vampire)
+		if(vamp && vamp.nullification == OLD_NULLIFICATION && !vamp.get_ability(/datum/vampire_passive/full))
+			vamp.adjust_nullification(5, 2)
+			if(prob(10))
+				to_chat(target, "<span class='userdanger'>Being in the presence of [holder]'s [src] is interfering with your powers!</span>")
+
+/obj/item/nullrod/cursed_rosary/afterattack(atom/target, mob/user, proximity, params)
+	if(target.reagents.has_reagent("holywater"))
+	to_chat(user, "<span class='notice'>Вы проклинаете [target].</span>")
+	var/holy2curse = target.reagents.get_reagent_amount("holywater")
+	target.reagents.del_reagent("holywater")
+	target.reagents.add_reagent("hell_water", holy2curse)

@@ -373,6 +373,13 @@
 	surplus = 0
 	can_discount = FALSE
 
+/datum/uplink_item/jobspecific/cursed_rosary
+	name = "Нечестивый амулет"
+	desc = "Позволяет вам показать всему миру вашу тёмную сторону. Главное помните - Гэри любит вас"
+	item = /obj/item/nullrod/cursed_rosary
+	cost = 35
+	job = list(JOB_TITLE_CHAPLAIN)
+
 //Janitor
 /datum/uplink_item/jobspecific/cautionsign
 	name = "Proximity Mine"

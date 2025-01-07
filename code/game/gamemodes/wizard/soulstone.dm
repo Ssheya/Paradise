@@ -23,12 +23,13 @@
 	/// For tracking during the 'optional' bit
 	var/opt_in = FALSE
 	var/purified = FALSE
+	var/corrupted = FALSE
 
 /obj/item/soulstone/proc/can_use(mob/living/user)
-	if(iscultist(user) && purified && !iswizard(user))
+	if(iscultist(user) && purified && !iswizard(user) && !(corrupted && user.mind.isholy))
 		return FALSE
 
-	if(iscultist(user) || iswizard(user) || usability)
+	if(iscultist(user) || iswizard(user) || usability || (corrupted && user.mind.isholy))
 		return TRUE
 
 	return FALSE
@@ -44,6 +45,9 @@
 /obj/item/soulstone/anybody
 	usability = TRUE
 
+/obj/item/soulstone/corrupted
+	corrupted = TRUE
+
 /obj/item/soulstone/anybody/purified
 	icon_state = "purified_soulstone"
 	icon_state_full = "purified_soulstone2"
@@ -58,6 +62,8 @@
 	. = ..()
 	if(iscultist(user) && purified && !iswizard(user))
 		to_chat(user, "<span class='danger'>[src] reeks of holy magic. You will need to cleanse it with a ritual dagger before anything can be done with it.</span>")
+	if(iscultist(user) && corrupted && !iswizard(user))
+		to_chat(user, "<span class='danger'>[src] источает проклятую магию. Вы не сможете порабодить его.</span>")
 	if(!can_use(user))
 		to_chat(user, "<span class='danger'>An overwhelming feeling of dread comes over you as you pick up [src].</span>")
 
@@ -180,6 +186,33 @@
 /obj/item/soulstone/attackby(obj/item/I, mob/user, params)
 	if(user.a_intent == INTENT_HARM)
 		return ..()
+
+	if(istype(I, /obj/item/nullrod/cursed_rosary) && user.mind.isholy)
+		add_fingerprint(user)
+		to_chat(user, span_notice("Вы начинаете проклинать [src]."))
+		playsound(src, 'sound/hallucinations/veryfar_noise.ogg', 40, TRUE)
+		if(!do_after(user, 4 SECONDS, src))
+			return ATTACK_CHAIN_PROCEED
+		usability = FALSE
+		corrupted = TRUE
+		update_icon(UPDATE_ICON_STATE)
+		for(var/mob/inhabitant in src)
+			if(inhabitant.mind)
+				if(iscultist(inhabitant))
+					SSticker.mode.remove_cultist(inhabitant.mind, FALSE)
+					to_chat(inhabitant, span_userdanger("Незнакомый красный свет вспыхивает в вашем сознании, очищая его от скверны [SSticker.cultdat ? SSticker.cultdat.entity_title1 : "Nar'Sie"] и воспоминаний о времени, когда вы были их слугой.."))
+					to_chat(inhabitant, span_danger("Служи [user], твоему спасителю, и отомстите тем, кто поработил вас!"))
+				else
+					to_chat(inhabitant, span_danger("Твой осколок души был проклят, теперь вы привязаны к [user]."))
+			if(isshade(inhabitant))
+				var/mob/living/simple_animal/shade/shade = inhabitant
+				shade.holy = FALSE
+				shade.update_icon(UPDATE_ICON_STATE)
+		user.visible_message(
+			span_notice("[user] проклинает [src]!"),
+			span_notice("Вы проклинаете [src]!"),
+		)
+		return ATTACK_CHAIN_PROCEED_SUCCESS
 
 	if(istype(I, /obj/item/storage/bible) && !iscultist(user) && user.mind.isholy)
 		add_fingerprint(user)
